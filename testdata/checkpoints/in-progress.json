@@ -1,0 +1,40 @@
+{
+  "task_id": "550e8400-e29b-41d4-a716-446655440000",
+  "task_type": "exploration",
+  "task_description": "Explore FastTree for undocumented likelihood optimizations",
+  "started_at": "2026-02-04T08:00:00Z",
+  "last_checkpoint": "2026-02-04T09:30:00Z",
+  "iteration_count": 7,
+  "prompt_file": "scribe/agents/exploration/PROMPT.md",
+  "max_iterations": 50,
+  "cost_budget_usd": 10.00,
+  "state": {
+    "items_completed": [
+      "Initial codebase scan",
+      "Identified FastTree.c as main file",
+      "Found ComputeLikelihood function",
+      "Found NNI optimization code",
+      "Searched for related papers"
+    ],
+    "items_pending": [
+      "Analyze MLUpdate function",
+      "Search for cache invalidation patterns",
+      "Find papers on rotated likelihood vectors"
+    ],
+    "blocked_items": [
+      {
+        "item": "Verify RAxML provenance claim",
+        "reason": "GitHub API rate limited",
+        "blocked_at": "2026-02-04T09:25:00Z"
+      }
+    ],
+    "current_focus": "Analyzing MLUpdate function for likelihood caching"
+  },
+  "metrics": {
+    "candidates_queued": 12,
+    "papers_found": 3,
+    "code_locations_found": 9,
+    "repos_searched": 2,
+    "estimated_cost_usd": 2.45
+  }
+}

@@ -1,9 +1,9 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 2.0.0 → 2.1.0 (minor: added Principle VI for agentic consumability)
-Modified principles: None
-Added sections: Principle VI. Agentic Consumability
+Version change: 2.1.0 → 2.2.0 (minor: added code location requirements to Principle I)
+Modified principles: I. Every Claim Must Be Traceable (expanded for code locations)
+Added sections: None
 Removed sections: None
 Templates requiring updates:
   - .specify/templates/plan-template.md: ⚠ pending (needs verification task structure)
@@ -13,6 +13,7 @@ Follow-up TODOs:
   - TODO(AGENT_PROMPTS): Define standard prompts for discovery and verification agents
   - TODO(VERIFICATION_SCRIPTS): Create automated verification tooling
   - TODO(QUERY_SCHEMA): Design the structured schema for technique entries (downstream spec)
+  - TODO(BIPARTITE_CODE_LOCATIONS): Extend bipartite repo nodes to support code location metadata
 -->
 
 # Compendium Authoring System Constitution
@@ -30,8 +31,11 @@ All factual claims MUST trace to verifiable sources with explicit provenance.
 - Paraphrased content MUST reference the source paper and relevant section/figure
 - No claim may exist without a traceable source—unsourced claims MUST be flagged
 - Agents MUST be able to programmatically verify any claim by traversing to its source
+- Implementation references SHOULD include specific code locations (file path, function/class name, or line range) where practical, not just repository URLs
+- Code references SHOULD include a commit hash or version tag to prevent link rot as code evolves
+- Code location links SHOULD use permalink format (e.g., GitHub blob URLs with commit SHA)
 
-**Rationale**: Compendiums rot when claims drift from sources. Traceability enables automated verification and prevents silent degradation of accuracy.
+**Rationale**: Compendiums rot when claims drift from sources. Traceability enables automated verification and prevents silent degradation of accuracy. Pointing to a repository is insufficient—readers and agents need to find the actual implementation, not search through thousands of files.
 
 ### II. Continuous Verification
 
@@ -230,4 +234,4 @@ This constitution governs the authoring system. Individual compendiums may add d
 - Verification failures MUST be resolved or explicitly documented
 - Agent workflows MUST log actions for audit
 
-**Version**: 2.1.0 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-02-04
+**Version**: 2.2.0 | **Ratified**: 2026-02-04 | **Last Amended**: 2026-02-04

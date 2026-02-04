@@ -1,0 +1,19 @@
+---
+title: "GTR Model Implementation"
+author: "Test Author"
+---
+
+# Rate Matrices
+
+The GTR model [@paper:tavare1986] generalizes the JC69 model by allowing
+different substitution rates for each pair of nucleotides.
+
+See the implementation in RAxML:
+[axml.c lines 1423-1498](https://github.com/stamatak/standard-RAxML/blob/abc123/axml.c#L1423-L1498)
+
+## References
+
+The original paper describing GTR is available at:
+https://github.com/stamatak/standard-RAxML
+
+For more details on phylogenetic models, see @paper:felsenstein2004.
