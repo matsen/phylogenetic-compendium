@@ -94,7 +94,9 @@ scribe/
 testdata/
 ├── valid/                     # Test content with good refs
 ├── invalid/                   # Test content with bad refs
-└── queue/                     # Test queue fixtures
+├── queue/                     # Test queue fixtures
+├── checkpoints/               # Test checkpoint fixtures
+└── sweep/                     # Test sweep fixtures
 ```
 
 **Structure Decision**: Go CLI (`scribe`) following bip's patterns. Shells out to Claude Haiku or Ollama for NLP tasks. Agent prompts remain as markdown for Ralph Loop.

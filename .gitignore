@@ -1,3 +1,17 @@
 /.quarto/
 **/*.quarto_ipynb
 ISSUE-*.md
+
+# Scribe authoring tooling
+.candidates/
+.claude/authoring/
+reports/verification/
+
+# Go
+scribe/scribe
+scribe/bin/
+*.exe
+*.test
+
+# Ephemeral caches
+*.sqlite

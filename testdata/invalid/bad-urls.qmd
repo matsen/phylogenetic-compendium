@@ -1,0 +1,9 @@
+---
+title: "Bad URLs Test"
+---
+
+# Test File
+
+Check this broken URL: https://github.com/nonexistent-org/nonexistent-repo
+
+And this one: https://example.invalid/broken-link

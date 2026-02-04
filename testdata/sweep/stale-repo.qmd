@@ -1,0 +1,13 @@
+---
+title: "Stale Repository Test"
+---
+
+# References to Stale Repositories
+
+This content references repositories that haven't been updated in over 2 years:
+
+See the implementation in this unmaintained repository:
+https://github.com/example/abandoned-phylo-tool
+
+The algorithm is also available at:
+https://github.com/olduser/legacy-tree-builder

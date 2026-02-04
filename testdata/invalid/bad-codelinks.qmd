@@ -1,0 +1,11 @@
+---
+title: "Bad Code Links Test"
+---
+
+# Test File
+
+See this code:
+[nonexistent.c lines 1-100](https://github.com/stamatak/standard-RAxML/blob/invalidsha/nonexistent.c#L1-L100)
+
+And this invalid range:
+[axml.c lines 999999-999999](https://github.com/stamatak/standard-RAxML/blob/abc123/axml.c#L999999-L999999)

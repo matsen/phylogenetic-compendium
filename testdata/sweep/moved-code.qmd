@@ -1,0 +1,15 @@
+---
+title: "Moved Code Test"
+---
+
+# References to Moved Code
+
+This content references code that has been moved or deleted:
+
+The likelihood computation can be found at:
+[compute_likelihood.c lines 100-200](https://github.com/example/repo/blob/abc123/src/compute_likelihood.c#L100-L200)
+
+This file was renamed in a refactoring, so the link is now broken.
+
+Also see:
+[deleted_file.c lines 50-100](https://github.com/example/repo/blob/def456/old/deleted_file.c#L50-L100)

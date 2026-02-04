@@ -1,0 +1,9 @@
+---
+title: "Bad Citations Test"
+---
+
+# Test File
+
+This paper [@paper:nonexistent123] does not exist in bipartite.
+
+Also referencing @paper:alsofake456 which is also invalid.

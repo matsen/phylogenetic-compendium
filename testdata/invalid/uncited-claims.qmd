@@ -1,0 +1,15 @@
+---
+title: "Uncited Claims Test"
+---
+
+# Test File
+
+## Factual Claims Without Citations
+
+The GTR model is 40% faster than the HKY model in practice.
+
+Studies have shown that maximum likelihood outperforms parsimony methods.
+
+FastTree achieves O(n log n) complexity, which is faster than RAxML.
+
+The algorithm was discovered by Felsenstein in 1981.
