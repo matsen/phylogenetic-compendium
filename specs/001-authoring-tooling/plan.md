@@ -101,7 +101,7 @@ testdata/
 
 ## Complexity Tracking
 
-No violations. Structure follows YAGNI—bash scripts where simple, Python where data handling is complex, prompts where agents do the work.
+No violations. Structure follows YAGNI—Go CLI for all commands, shelling to LLM for NLP tasks, prompts where agents do the work.
 
 ## Phase 0: Research Tasks
 

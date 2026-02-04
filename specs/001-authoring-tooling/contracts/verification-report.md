@@ -4,7 +4,7 @@
 
 ## Overview
 
-The verification system (`tools/verify/verify-content.sh`) produces structured reports that can be consumed by humans (via formatted output) or agents (via JSON).
+The verification system (`scribe verify`) produces structured reports that can be consumed by humans (via formatted output) or agents (via JSON).
 
 ## Report Structure
 
@@ -196,14 +196,14 @@ Detects TODO/FIXME markers in content.
 ### JSON (default, for agents)
 
 ```bash
-verify-content.sh intro.qmd chapters/*.qmd
+scribe verify intro.qmd chapters/*.qmd
 # Outputs full JSON report to stdout
 ```
 
 ### Human-readable (for terminal)
 
 ```bash
-verify-content.sh --human intro.qmd chapters/*.qmd
+scribe verify --human intro.qmd chapters/*.qmd
 ```
 
 Output:
@@ -237,7 +237,7 @@ WARNINGS:
 ### Summary only
 
 ```bash
-verify-content.sh --summary intro.qmd chapters/*.qmd
+scribe verify --summary intro.qmd chapters/*.qmd
 ```
 
 Output:
@@ -263,8 +263,8 @@ Output:
 ```bash
 # .git/hooks/pre-commit
 #!/bin/bash
-if ! tools/verify/verify-content.sh --summary *.qmd chapters/*.qmd | jq -e '.failed == 0' > /dev/null; then
-  echo "Verification failed. Run 'tools/verify/verify-content.sh --human' for details."
+if ! scribe verify --summary *.qmd chapters/*.qmd | jq -e '.failed == 0' > /dev/null; then
+  echo "Verification failed. Run 'scribe verify --human' for details."
   exit 1
 fi
 ```

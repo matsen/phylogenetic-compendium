@@ -108,7 +108,7 @@ scribe status
 ```bash
 # Start an exploration task (runs via Ralph Loop)
 claude --ralph "$(cat scribe/agents/exploration/PROMPT.md)" \
-  --var TARGET_REPO="https://github.com/lh3/fasttree" \
+  --var TARGET_REPO="https://github.com/morgannprice/fasttree" \
   --var TECHNIQUE_HINT="rotated likelihood vectors" \
   --var PROVENANCE_HINT="came from RAxML"
 
@@ -167,8 +167,8 @@ scribe sweep --check claim-consistency
 
 1. **Start exploration** with what you know
    ```bash
-   claude --ralph "scribe/agents/exploration/PROMPT.md" \
-     --var TARGET_REPO="https://github.com/lh3/fasttree" \
+   claude --ralph "$(cat scribe/agents/exploration/PROMPT.md)" \
+     --var TARGET_REPO="https://github.com/morgannprice/fasttree" \
      --var TECHNIQUE_HINT="likelihood caching"
    ```
 
