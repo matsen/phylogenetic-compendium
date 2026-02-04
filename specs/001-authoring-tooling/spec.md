@@ -121,6 +121,25 @@ A compendium maintainer wants to ensure existing content remains accurate over t
 
 ---
 
+### User Story 7 - Autonomous Long-Running Operation (Priority: P2)
+
+An author wants to kick off a multi-hour exploration or survey task and walk away. They provide a task description and constraints, then the system runs autonomously—persisting progress, handling context limits, and resuming work—until the task is complete or human intervention is required. The author returns to find completed work, a summary of what was done, and any items queued for review.
+
+**Why this priority**: Exploration and survey agents (P3) can take hours for large codebases. Without autonomous operation, an author must babysit the process. This enables "overnight" workflows that multiply authoring throughput.
+
+**Independent Test**: Can be tested by starting an exploration task, letting it run through multiple context resets, and verifying work persists and completes.
+
+**Acceptance Scenarios**:
+
+1. **Given** a task with estimated multi-hour runtime, **When** the author starts it, **Then** the system runs without requiring human presence
+2. **Given** an agent approaching context limits, **When** it detects this, **Then** it checkpoints progress and continues with fresh context
+3. **Given** a running autonomous task, **When** the author checks status, **Then** they see progress summary and current state
+4. **Given** an autonomous task that encounters a blocking issue, **When** detected, **Then** the system queues it for human review and continues with other work
+5. **Given** an autonomous task that completes, **When** the author returns, **Then** they see a summary of work done and candidates queued for review
+6. **Given** an autonomous task, **When** it runs, **Then** all actions are logged for audit and the work is committed incrementally
+
+---
+
 ### Edge Cases
 
 - What happens when bipartite is unavailable? Verification fails with a clear error indicating bipartite connectivity issue.
@@ -132,6 +151,9 @@ A compendium maintainer wants to ensure existing content remains accurate over t
 - What happens when a code location link uses a commit SHA that no longer exists? Verification flags it; agent suggests updating to current HEAD.
 - What happens when a repo has been renamed or moved? Agent detects redirect and suggests updating the reference.
 - How does the system handle private repos? Agent notes access failure and flags for human review (may need authentication).
+- What happens when an autonomous loop runs out of API budget? System checkpoints state and stops gracefully with clear cost report.
+- What happens when an autonomous task hits an unrecoverable error? System logs the error, checkpoints progress, and queues issue for human review.
+- How does the system handle multiple autonomous tasks running concurrently? Each task operates in its own branch to prevent conflicts.
 
 ## Requirements *(mandatory)*
 
@@ -186,9 +208,18 @@ A compendium maintainer wants to ensure existing content remains accurate over t
 - **FR-036**: Verification sweep MUST identify coverage gaps (concepts without implementations)
 - **FR-037**: Verification sweep MUST generate a categorized report of issues
 
+**Autonomous Long-Running Operation**:
+- **FR-038**: System MUST support autonomous multi-hour operation via Ralph Loop plugin
+- **FR-039**: System MUST checkpoint progress to disk before context resets
+- **FR-040**: System MUST resume from checkpoint after context reset
+- **FR-041**: System MUST commit work incrementally (not batch at end)
+- **FR-042**: System MUST detect blocking issues and queue them for human review without stopping
+- **FR-043**: System MUST produce a summary of completed work when task finishes
+- **FR-044**: System MUST respect configurable iteration limits and cost budgets
+
 **Logging and Audit**:
-- **FR-038**: All agents MUST log actions in structured format for audit
-- **FR-039**: Logs MUST include: agent type, action, target, result, timestamp
+- **FR-045**: All agents MUST log actions in structured format for audit
+- **FR-046**: Logs MUST include: agent type, action, target, result, timestamp
 
 ### Key Entities
 
@@ -197,6 +228,7 @@ A compendium maintainer wants to ensure existing content remains accurate over t
 - **Verification Result**: Outcome of a verification check. Attributes: check_type, target_id, status (pass/fail), message, checked_at
 - **Agent Action Log**: Record of an agent's action. Attributes: agent_type, action, target, result, timestamp
 - **Survey Finding**: A structured finding from comparative survey. Attributes: repo, concept, approach_summary, code_location, key_insight, related_papers
+- **Task Checkpoint**: Progress state for autonomous operation. Attributes: task_id, task_description, iteration_count, items_completed, items_pending, blocked_items, last_checkpoint_at, total_cost
 
 ## Success Criteria *(mandatory)*
 
@@ -210,6 +242,8 @@ A compendium maintainer wants to ensure existing content remains accurate over t
 - **SC-006**: Periodic verification sweep completes for a 100-page compendium in under 15 minutes
 - **SC-007**: 100% of verification failures include actionable information (what failed, where, why)
 - **SC-008**: Zero false positives in pre-commit verification (valid content never incorrectly blocked)
+- **SC-009**: Autonomous tasks can run for 3+ hours across multiple context resets without data loss
+- **SC-010**: Autonomous tasks recover gracefully from transient failures (network, rate limits) without human intervention
 
 ## Assumptions
 
@@ -223,3 +257,4 @@ A compendium maintainer wants to ensure existing content remains accurate over t
 - Code location links use GitHub permalink format: `https://github.com/{org}/{repo}/blob/{sha}/{path}#L{start}-L{end}`
 - Agents run in an environment with network access to GitHub and academic APIs
 - Target repositories are public (private repos require additional authentication setup)
+- Claude Code Ralph Loop plugin is available for autonomous long-running operation
