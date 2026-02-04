@@ -73,41 +73,44 @@ func (s *Store) FindByID(id string) (*Candidate, error) {
 	if err != nil {
 		return nil, err
 	}
-	for _, c := range candidates {
-		if c.ID == id {
-			return &c, nil
+	for _, candidate := range candidates {
+		if candidate.ID == id {
+			return &candidate, nil
 		}
 	}
 	return nil, nil
 }
 
-// Update updates a candidate in the queue.
-func (s *Store) Update(c Candidate) error {
+// Update updates a candidate in the queue by ID.
+// This reads all candidates, replaces the matching one, and rewrites the file.
+// JSONL format requires full rewrite for updates - this is expected behavior.
+func (s *Store) Update(candidate Candidate) error {
 	candidates, err := s.ReadAll()
 	if err != nil {
 		return err
 	}
 
-	found := false
+	// Find and replace the candidate by ID
+	index := -1
 	for i, existing := range candidates {
-		if existing.ID == c.ID {
-			candidates[i] = c
-			found = true
+		if existing.ID == candidate.ID {
+			index = i
 			break
 		}
 	}
 
-	if !found {
-		return fmt.Errorf("candidate not found: %s", c.ID)
+	if index == -1 {
+		return fmt.Errorf("candidate not found: %s", candidate.ID)
 	}
 
+	candidates[index] = candidate
 	return s.WriteAll(candidates)
 }
 
 // IsRejected checks if a candidate with the given external ID has been previously rejected.
 // This is used to prevent re-discovery of rejected items per FR-012.
 func (s *Store) IsRejected(externalID string, candidateType CandidateType) (bool, error) {
-	rejected, err := s.ReadRejected()
+	rejectedCandidates, err := s.ReadRejected()
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return false, nil
@@ -115,22 +118,22 @@ func (s *Store) IsRejected(externalID string, candidateType CandidateType) (bool
 		return false, err
 	}
 
-	for _, c := range rejected {
-		if c.Type != candidateType {
+	for _, candidate := range rejectedCandidates {
+		if candidate.Type != candidateType {
 			continue
 		}
 		// Check type-specific external IDs
 		switch candidateType {
 		case CandidateTypePaper:
-			if c.PaperData != nil && c.PaperData.S2ID == externalID {
+			if candidate.PaperData != nil && candidate.PaperData.S2ID == externalID {
 				return true, nil
 			}
 		case CandidateTypeRepo:
-			if c.RepoData != nil && c.RepoData.URL == externalID {
+			if candidate.RepoData != nil && candidate.RepoData.URL == externalID {
 				return true, nil
 			}
 		case CandidateTypeCodeLocation:
-			if c.CodeLocationData != nil && c.CodeLocationData.PermalinkURL == externalID {
+			if candidate.CodeLocationData != nil && candidate.CodeLocationData.PermalinkURL == externalID {
 				return true, nil
 			}
 		}
@@ -152,10 +155,10 @@ func (s *Store) GetStats() (*QueueStats, error) {
 		ByType: make(map[CandidateType]int),
 	}
 
-	for _, c := range candidates {
+	for _, candidate := range candidates {
 		stats.Total++
-		stats.ByType[c.Type]++
-		switch c.Status {
+		stats.ByType[candidate.Type]++
+		switch candidate.Status {
 		case CandidateStatusPending:
 			stats.Pending++
 		case CandidateStatusApproved:

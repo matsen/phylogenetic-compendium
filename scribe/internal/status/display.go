@@ -72,7 +72,7 @@ func (d *Display) ShowCheckpoint(checkpoint *TaskCheckpoint) {
 	if checkpoint.CostBudgetUSD != nil {
 		d.formatter.Println("Budget: %s (%.1f%% used)",
 			output.FormatCurrency(*checkpoint.CostBudgetUSD),
-			(checkpoint.Metrics.EstimatedCostUSD / *checkpoint.CostBudgetUSD) * 100)
+			(checkpoint.Metrics.EstimatedCostUSD / *checkpoint.CostBudgetUSD)*100)
 	}
 	d.formatter.Println("")
 

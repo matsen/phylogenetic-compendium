@@ -12,6 +12,11 @@ import (
 	"github.com/google/uuid"
 )
 
+// estimatedCharsPerLine is a rough estimate for calculating line count from file size.
+// This is unreliable (minified code may have 1000+ chars/line, sparse code 10-20).
+// Used only as a heuristic - line range validation is skipped when unreliable.
+const estimatedCharsPerLine = 30
+
 // githubPermalinkPattern matches GitHub permalink URLs with line numbers
 var githubPermalinkPattern = regexp.MustCompile(`https://github\.com/([^/]+)/([^/]+)/blob/([a-f0-9]+)/([^#]+)#L(\d+)(?:-L(\d+))?`)
 
@@ -80,7 +85,7 @@ func VerifyCodeLink(link CodeLinkMatch, file string, line int, text string) Veri
 	}
 
 	// Check if the file exists at the given commit
-	fileExists, lineCount, err := checkFileAtCommit(link.Owner, link.Repo, link.CommitSHA, link.FilePath)
+	fileExists, estimatedLineCount, isEstimated, err := checkFileExistsAtCommit(link.Owner, link.Repo, link.CommitSHA, link.FilePath)
 	if err != nil {
 		result.Status = CheckStatusFail
 		result.Message = fmt.Sprintf("Failed to verify code link %q: %v", link.FullURL, err)
@@ -94,20 +99,33 @@ func VerifyCodeLink(link CodeLinkMatch, file string, line int, text string) Veri
 		return result
 	}
 
+	// Determine line range validity
+	// If line count is estimated (unreliable), skip line range validation and warn
 	lineRangeValid := false
-	if fileExists && lineCount > 0 {
-		lineRangeValid = link.StartLine <= lineCount && link.EndLine <= lineCount
+	lineRangeSkipped := false
+	if fileExists {
+		if isEstimated {
+			// Can't reliably validate line ranges with estimated counts
+			lineRangeSkipped = true
+		} else if estimatedLineCount > 0 {
+			lineRangeValid = link.StartLine <= estimatedLineCount && link.EndLine <= estimatedLineCount
+		}
 	}
 
-	if fileExists && lineRangeValid {
-		result.Status = CheckStatusPass
-		result.Message = fmt.Sprintf("Code link %q is valid", link.FullURL)
-	} else if !fileExists {
+	if !fileExists {
 		result.Status = CheckStatusFail
 		result.Message = fmt.Sprintf("File %q does not exist at commit %s", link.FilePath, link.CommitSHA[:8])
-	} else {
+	} else if lineRangeSkipped {
+		// File exists but we can't verify line range - warn instead of false positive
+		result.Status = CheckStatusWarn
+		result.Message = fmt.Sprintf("Code link %q: file exists but line range L%d-L%d could not be verified (line count estimated)", link.FullURL, link.StartLine, link.EndLine)
+		lineRangeValid = true // Mark as valid for details since we couldn't check
+	} else if !lineRangeValid {
 		result.Status = CheckStatusFail
-		result.Message = fmt.Sprintf("Line range L%d-L%d exceeds file length (%d lines)", link.StartLine, link.EndLine, lineCount)
+		result.Message = fmt.Sprintf("Line range L%d-L%d exceeds file length (%d lines)", link.StartLine, link.EndLine, estimatedLineCount)
+	} else {
+		result.Status = CheckStatusPass
+		result.Message = fmt.Sprintf("Code link %q is valid", link.FullURL)
 	}
 
 	result.Details = VerificationDetails{
@@ -121,8 +139,10 @@ func VerifyCodeLink(link CodeLinkMatch, file string, line int, text string) Veri
 	return result
 }
 
-// checkFileAtCommit checks if a file exists at a specific commit and returns its line count.
-func checkFileAtCommit(owner, repo, sha, filePath string) (exists bool, lineCount int, err error) {
+// checkFileExistsAtCommit checks if a file exists at a specific commit.
+// Returns: exists, estimatedLineCount, isEstimated (true if line count is unreliable), error.
+// Line count is estimated from file size and is unreliable - callers should treat it as a hint only.
+func checkFileExistsAtCommit(owner, repo, sha, filePath string) (exists bool, lineCount int, isEstimated bool, err error) {
 	// Use gh api to get file content
 	apiPath := fmt.Sprintf("repos/%s/%s/contents/%s?ref=%s", owner, repo, filePath, sha)
 	cmd := exec.Command("gh", "api", apiPath)
@@ -133,9 +153,9 @@ func checkFileAtCommit(owner, repo, sha, filePath string) (exists bool, lineCoun
 	if err := cmd.Run(); err != nil {
 		// Check if it's a 404 (file not found)
 		if bytes.Contains(stderr.Bytes(), []byte("404")) || bytes.Contains(stderr.Bytes(), []byte("Not Found")) {
-			return false, 0, nil
+			return false, 0, false, nil
 		}
-		return false, 0, fmt.Errorf("gh api error: %s", stderr.String())
+		return false, 0, false, fmt.Errorf("gh api error: %s", stderr.String())
 	}
 
 	// Parse the response to get the file size (as a proxy for existence)
@@ -143,15 +163,16 @@ func checkFileAtCommit(owner, repo, sha, filePath string) (exists bool, lineCoun
 		Size int `json:"size"`
 	}
 	if err := json.Unmarshal(stdout.Bytes(), &response); err != nil {
-		return false, 0, fmt.Errorf("parse response: %w", err)
+		return false, 0, false, fmt.Errorf("parse response: %w", err)
 	}
 
-	// File exists, estimate line count (rough estimate: ~30 chars per line)
-	// For accurate line count, we'd need to fetch and count the actual content
-	estimatedLines := response.Size / 30
+	// File exists, estimate line count from size
+	// This is unreliable - minified files may have very few lines, sparse code many
+	estimatedLines := response.Size / estimatedCharsPerLine
 	if estimatedLines < 1 {
 		estimatedLines = 1
 	}
 
-	return true, estimatedLines, nil
+	// Always mark as estimated since we're using a heuristic
+	return true, estimatedLines, true, nil
 }

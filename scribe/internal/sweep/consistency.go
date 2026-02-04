@@ -28,7 +28,7 @@ func CheckClaimConsistency(content string, file string) []SweepResult {
 			File:      file,
 			Message:   fmt.Sprintf("Citation %s exists - manual consistency check recommended", citation),
 			Details: map[string]any{
-				"citation_id": citation,
+				"citation_id":  citation,
 				"needs_review": true,
 			},
 			SuggestedFix: "Use Asta snippet search to verify the cited paper still supports the claim",

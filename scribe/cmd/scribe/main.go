@@ -19,6 +19,37 @@ import (
 // Version is set at build time.
 var Version = "dev"
 
+// getOutputMode determines the output mode from command flags.
+// Returns true for JSON output, false for human-readable.
+// Defaults to JSON unless --human is specified.
+func getOutputMode(cmd *cobra.Command, defaultToJSON bool) bool {
+	humanOutput, _ := cmd.Flags().GetBool("human")
+	jsonOutput, _ := cmd.Flags().GetBool("json")
+
+	if !humanOutput && !jsonOutput {
+		return defaultToJSON
+	}
+	return jsonOutput
+}
+
+// queueContext holds common dependencies for queue commands.
+type queueContext struct {
+	service   *queue.CandidateService
+	formatter *output.Formatter
+	jsonMode  bool
+}
+
+// newQueueContext creates common dependencies for queue commands.
+func newQueueContext(cmd *cobra.Command) *queueContext {
+	jsonMode := getOutputMode(cmd, true) // queue commands default to JSON
+	store := queue.NewStore("", "")
+	return &queueContext{
+		service:   queue.NewCandidateService(store),
+		formatter: output.NewFormatter(jsonMode),
+		jsonMode:  jsonMode,
+	}
+}
+
 func main() {
 	rootCmd := &cobra.Command{
 		Use:   "scribe",
@@ -154,6 +185,7 @@ func queueAddCmd() *cobra.Command {
 Types: paper, repo, code-location, concept`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := newQueueContext(cmd)
 			candidateType := queue.CandidateType(args[0])
 			s2ID, _ := cmd.Flags().GetString("s2-id")
 			repoURL, _ := cmd.Flags().GetString("repo")
@@ -162,14 +194,8 @@ Types: paper, repo, code-location, concept`,
 			sha, _ := cmd.Flags().GetString("sha")
 			description, _ := cmd.Flags().GetString("description")
 			notes, _ := cmd.Flags().GetString("notes")
-			jsonOutput, _ := cmd.Flags().GetBool("json")
-			humanOutput, _ := cmd.Flags().GetBool("human")
 
-			if !humanOutput && !jsonOutput {
-				jsonOutput = true
-			}
-
-			c := queue.Candidate{
+			candidate := queue.Candidate{
 				Type:             candidateType,
 				Status:           queue.CandidateStatusPending,
 				DiscoveredAt:     time.Now(),
@@ -182,7 +208,7 @@ Types: paper, repo, code-location, concept`,
 				if s2ID == "" {
 					return fmt.Errorf("--s2-id is required for paper type")
 				}
-				c.PaperData = &queue.PaperData{
+				candidate.PaperData = &queue.PaperData{
 					S2ID:           s2ID,
 					RelevanceNotes: notes,
 				}
@@ -190,7 +216,7 @@ Types: paper, repo, code-location, concept`,
 				if repoURL == "" {
 					return fmt.Errorf("--repo is required for repo type")
 				}
-				c.RepoData = &queue.RepoData{
+				candidate.RepoData = &queue.RepoData{
 					URL:            repoURL,
 					RelevanceNotes: notes,
 				}
@@ -209,7 +235,7 @@ Types: paper, repo, code-location, concept`,
 						endLine = startLine
 					}
 				}
-				c.CodeLocationData = &queue.CodeLocationData{
+				candidate.CodeLocationData = &queue.CodeLocationData{
 					RepoURL:     repoURL,
 					FilePath:    filePath,
 					StartLine:   startLine,
@@ -221,18 +247,14 @@ Types: paper, repo, code-location, concept`,
 				return fmt.Errorf("unknown type: %s", candidateType)
 			}
 
-			store := queue.NewStore("", "")
-			svc := queue.NewCandidateService(store)
-
-			if err := svc.Add(c); err != nil {
+			if err := ctx.service.Add(candidate); err != nil {
 				return fmt.Errorf("failed to add candidate: %w", err)
 			}
 
-			formatter := output.NewFormatter(jsonOutput)
-			if jsonOutput {
-				return formatter.JSON(map[string]string{"status": "added", "id": c.ID})
+			if ctx.jsonMode {
+				return ctx.formatter.JSON(map[string]string{"status": "added", "id": candidate.ID})
 			}
-			formatter.Println("Added candidate: %s", c.ID)
+			ctx.formatter.Println("Added candidate: %s", candidate.ID)
 			return nil
 		},
 	}
@@ -253,14 +275,9 @@ func queueListCmd() *cobra.Command {
 		Use:   "list",
 		Short: "List candidates in the queue",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			humanOutput, _ := cmd.Flags().GetBool("human")
-			jsonOutput, _ := cmd.Flags().GetBool("json")
+			ctx := newQueueContext(cmd)
 			statusStr, _ := cmd.Flags().GetString("status")
 			typeStr, _ := cmd.Flags().GetString("type")
-
-			if !humanOutput && !jsonOutput {
-				jsonOutput = true
-			}
 
 			var statusFilter *queue.CandidateStatus
 			if statusStr != "" {
@@ -274,34 +291,30 @@ func queueListCmd() *cobra.Command {
 				typeFilter = &t
 			}
 
-			store := queue.NewStore("", "")
-			svc := queue.NewCandidateService(store)
-
-			candidates, err := svc.List(statusFilter, typeFilter)
+			candidates, err := ctx.service.List(statusFilter, typeFilter)
 			if err != nil {
 				return fmt.Errorf("failed to list candidates: %w", err)
 			}
 
-			formatter := output.NewFormatter(jsonOutput)
-			if jsonOutput {
-				return formatter.JSON(candidates)
+			if ctx.jsonMode {
+				return ctx.formatter.JSON(candidates)
 			}
 
 			if len(candidates) == 0 {
-				formatter.Println("No candidates found")
+				ctx.formatter.Println("No candidates found")
 				return nil
 			}
 
-			formatter.Header("Candidates")
-			for _, c := range candidates {
-				status := output.StatusPending
-				switch c.Status {
+			ctx.formatter.Header("Candidates")
+			for _, candidate := range candidates {
+				displayStatus := output.StatusPending
+				switch candidate.Status {
 				case queue.CandidateStatusApproved:
-					status = output.StatusOK
+					displayStatus = output.StatusOK
 				case queue.CandidateStatusRejected:
-					status = output.StatusError
+					displayStatus = output.StatusError
 				}
-				formatter.Println("%s [%s] %s (%s)", output.FormatStatus(status), c.ID, string(c.Type), c.Status)
+				ctx.formatter.Println("%s [%s] %s (%s)", output.FormatStatus(displayStatus), candidate.ID, string(candidate.Type), candidate.Status)
 			}
 			return nil
 		},
@@ -319,27 +332,18 @@ func queueApproveCmd() *cobra.Command {
 		Short: "Approve a candidate",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := newQueueContext(cmd)
 			id := args[0]
 			notes, _ := cmd.Flags().GetString("notes")
-			jsonOutput, _ := cmd.Flags().GetBool("json")
-			humanOutput, _ := cmd.Flags().GetBool("human")
 
-			if !humanOutput && !jsonOutput {
-				jsonOutput = true
-			}
-
-			store := queue.NewStore("", "")
-			svc := queue.NewCandidateService(store)
-
-			if err := svc.Approve(id, "human", notes); err != nil {
+			if err := ctx.service.Approve(id, "human", notes); err != nil {
 				return fmt.Errorf("failed to approve: %w", err)
 			}
 
-			formatter := output.NewFormatter(jsonOutput)
-			if jsonOutput {
-				return formatter.JSON(map[string]string{"status": "approved", "id": id})
+			if ctx.jsonMode {
+				return ctx.formatter.JSON(map[string]string{"status": "approved", "id": id})
 			}
-			formatter.Println("Approved: %s", id)
+			ctx.formatter.Println("Approved: %s", id)
 			return nil
 		},
 	}
@@ -355,27 +359,18 @@ func queueRejectCmd() *cobra.Command {
 		Short: "Reject a candidate",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := newQueueContext(cmd)
 			id := args[0]
 			reason, _ := cmd.Flags().GetString("reason")
-			jsonOutput, _ := cmd.Flags().GetBool("json")
-			humanOutput, _ := cmd.Flags().GetBool("human")
 
-			if !humanOutput && !jsonOutput {
-				jsonOutput = true
-			}
-
-			store := queue.NewStore("", "")
-			svc := queue.NewCandidateService(store)
-
-			if err := svc.Reject(id, "human", reason); err != nil {
+			if err := ctx.service.Reject(id, "human", reason); err != nil {
 				return fmt.Errorf("failed to reject: %w", err)
 			}
 
-			formatter := output.NewFormatter(jsonOutput)
-			if jsonOutput {
-				return formatter.JSON(map[string]string{"status": "rejected", "id": id})
+			if ctx.jsonMode {
+				return ctx.formatter.JSON(map[string]string{"status": "rejected", "id": id})
 			}
-			formatter.Println("Rejected: %s", id)
+			ctx.formatter.Println("Rejected: %s", id)
 			return nil
 		},
 	}
@@ -391,34 +386,25 @@ func queueGetCmd() *cobra.Command {
 		Short: "Get details of a candidate",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := newQueueContext(cmd)
 			id := args[0]
-			jsonOutput, _ := cmd.Flags().GetBool("json")
-			humanOutput, _ := cmd.Flags().GetBool("human")
 
-			if !humanOutput && !jsonOutput {
-				jsonOutput = true
-			}
-
-			store := queue.NewStore("", "")
-			svc := queue.NewCandidateService(store)
-
-			c, err := svc.Get(id)
+			candidate, err := ctx.service.Get(id)
 			if err != nil {
 				return fmt.Errorf("failed to get candidate: %w", err)
 			}
-			if c == nil {
+			if candidate == nil {
 				return fmt.Errorf("candidate not found: %s", id)
 			}
 
-			formatter := output.NewFormatter(jsonOutput)
-			if jsonOutput {
-				return formatter.JSON(c)
+			if ctx.jsonMode {
+				return ctx.formatter.JSON(candidate)
 			}
 
-			formatter.Println("ID: %s", c.ID)
-			formatter.Println("Type: %s", c.Type)
-			formatter.Println("Status: %s", c.Status)
-			formatter.Println("Discovered: %s by %s", output.FormatTime(c.DiscoveredAt), c.DiscoveredBy)
+			ctx.formatter.Println("ID: %s", candidate.ID)
+			ctx.formatter.Println("Type: %s", candidate.Type)
+			ctx.formatter.Println("Status: %s", candidate.Status)
+			ctx.formatter.Println("Discovered: %s by %s", output.FormatTime(candidate.DiscoveredAt), candidate.DiscoveredBy)
 			return nil
 		},
 	}
@@ -432,35 +418,26 @@ func queueStatsCmd() *cobra.Command {
 		Use:   "stats",
 		Short: "Show queue statistics",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			humanOutput, _ := cmd.Flags().GetBool("human")
-			jsonOutput, _ := cmd.Flags().GetBool("json")
+			ctx := newQueueContext(cmd)
 
-			if !humanOutput && !jsonOutput {
-				jsonOutput = true
-			}
-
-			store := queue.NewStore("", "")
-			svc := queue.NewCandidateService(store)
-
-			stats, err := svc.Stats()
+			stats, err := ctx.service.Stats()
 			if err != nil {
 				return fmt.Errorf("failed to get stats: %w", err)
 			}
 
-			formatter := output.NewFormatter(jsonOutput)
-			if jsonOutput {
-				return formatter.JSON(stats)
+			if ctx.jsonMode {
+				return ctx.formatter.JSON(stats)
 			}
 
-			formatter.Header("Queue Statistics")
-			formatter.Println("Total: %d", stats.Total)
-			formatter.Println("Pending: %d", stats.Pending)
-			formatter.Println("Approved: %d", stats.Approved)
-			formatter.Println("Rejected: %d", stats.Rejected)
-			formatter.Println("")
-			formatter.Println("By Type:")
-			for t, count := range stats.ByType {
-				formatter.Println("  %s: %d", t, count)
+			ctx.formatter.Header("Queue Statistics")
+			ctx.formatter.Println("Total: %d", stats.Total)
+			ctx.formatter.Println("Pending: %d", stats.Pending)
+			ctx.formatter.Println("Approved: %d", stats.Approved)
+			ctx.formatter.Println("Rejected: %d", stats.Rejected)
+			ctx.formatter.Println("")
+			ctx.formatter.Println("By Type:")
+			for candidateType, count := range stats.ByType {
+				ctx.formatter.Println("  %s: %d", candidateType, count)
 			}
 			return nil
 		},

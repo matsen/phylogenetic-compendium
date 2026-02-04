@@ -38,16 +38,16 @@ type TaskMetrics struct {
 
 // TaskCheckpoint represents the progress state for autonomous operation.
 type TaskCheckpoint struct {
-	TaskID          string    `json:"task_id"`
-	TaskType        TaskType  `json:"task_type"`
-	TaskDescription string    `json:"task_description"`
-	StartedAt       time.Time `json:"started_at"`
-	LastCheckpoint  time.Time `json:"last_checkpoint"`
-	IterationCount  int       `json:"iteration_count"`
-	PromptFile      string    `json:"prompt_file"`
-	MaxIterations   int       `json:"max_iterations"`
-	CostBudgetUSD   *float64  `json:"cost_budget_usd,omitempty"`
-	State           TaskState `json:"state"`
+	TaskID          string      `json:"task_id"`
+	TaskType        TaskType    `json:"task_type"`
+	TaskDescription string      `json:"task_description"`
+	StartedAt       time.Time   `json:"started_at"`
+	LastCheckpoint  time.Time   `json:"last_checkpoint"`
+	IterationCount  int         `json:"iteration_count"`
+	PromptFile      string      `json:"prompt_file"`
+	MaxIterations   int         `json:"max_iterations"`
+	CostBudgetUSD   *float64    `json:"cost_budget_usd,omitempty"`
+	State           TaskState   `json:"state"`
 	Metrics         TaskMetrics `json:"metrics"`
 }
 

@@ -10,14 +10,14 @@ import (
 
 // GitCommitter provides incremental git commit functionality during autonomous operation.
 type GitCommitter struct {
-	taskID     string
+	taskID      string
 	commitCount int
 }
 
 // NewGitCommitter creates a new GitCommitter.
 func NewGitCommitter(taskID string) *GitCommitter {
 	return &GitCommitter{
-		taskID:     taskID,
+		taskID:      taskID,
 		commitCount: 0,
 	}
 }

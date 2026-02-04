@@ -23,30 +23,30 @@ func GenerateID() string {
 }
 
 // Add adds a new candidate to the queue.
-func (s *CandidateService) Add(c Candidate) error {
-	if c.ID == "" {
-		c.ID = GenerateID()
+func (s *CandidateService) Add(candidate Candidate) error {
+	if candidate.ID == "" {
+		candidate.ID = GenerateID()
 	}
-	if c.Status == "" {
-		c.Status = CandidateStatusPending
+	if candidate.Status == "" {
+		candidate.Status = CandidateStatusPending
 	}
-	if c.DiscoveredAt.IsZero() {
-		c.DiscoveredAt = time.Now()
+	if candidate.DiscoveredAt.IsZero() {
+		candidate.DiscoveredAt = time.Now()
 	}
 
 	// Check for duplicates in queue
-	existing, err := s.store.FindByID(c.ID)
+	existing, err := s.store.FindByID(candidate.ID)
 	if err != nil {
 		return fmt.Errorf("check existing: %w", err)
 	}
 	if existing != nil {
-		return fmt.Errorf("candidate with ID %s already exists", c.ID)
+		return fmt.Errorf("candidate with ID %s already exists", candidate.ID)
 	}
 
 	// Check if previously rejected (FR-012)
-	externalID := getExternalID(c)
+	externalID := getExternalID(candidate)
 	if externalID != "" {
-		rejected, err := s.store.IsRejected(externalID, c.Type)
+		rejected, err := s.store.IsRejected(externalID, candidate.Type)
 		if err != nil {
 			return fmt.Errorf("check rejected: %w", err)
 		}
@@ -55,7 +55,7 @@ func (s *CandidateService) Add(c Candidate) error {
 		}
 	}
 
-	return s.store.Append(c)
+	return s.store.Append(candidate)
 }
 
 // List returns all candidates, optionally filtered.
@@ -70,14 +70,14 @@ func (s *CandidateService) List(statusFilter *CandidateStatus, typeFilter *Candi
 	}
 
 	var filtered []Candidate
-	for _, c := range candidates {
-		if statusFilter != nil && c.Status != *statusFilter {
+	for _, candidate := range candidates {
+		if statusFilter != nil && candidate.Status != *statusFilter {
 			continue
 		}
-		if typeFilter != nil && c.Type != *typeFilter {
+		if typeFilter != nil && candidate.Type != *typeFilter {
 			continue
 		}
-		filtered = append(filtered, c)
+		filtered = append(filtered, candidate)
 	}
 	return filtered, nil
 }
@@ -89,32 +89,33 @@ func (s *CandidateService) Get(id string) (*Candidate, error) {
 
 // Approve approves a candidate and triggers appropriate actions.
 func (s *CandidateService) Approve(id string, reviewedBy string, notes string) error {
-	c, err := s.store.FindByID(id)
+	candidate, err := s.store.FindByID(id)
 	if err != nil {
 		return err
 	}
-	if c == nil {
+	if candidate == nil {
 		return fmt.Errorf("candidate not found: %s", id)
 	}
-	if c.Status != CandidateStatusPending {
-		return fmt.Errorf("candidate %s is not pending (status: %s)", id, c.Status)
+	if candidate.Status != CandidateStatusPending {
+		return fmt.Errorf("candidate %s is not pending (status: %s)", id, candidate.Status)
 	}
 
 	now := time.Now()
-	c.Status = CandidateStatusApproved
-	c.ReviewedAt = &now
-	c.ReviewedBy = &reviewedBy
-	c.ReviewNotes = &notes
+	candidate.Status = CandidateStatusApproved
+	candidate.ReviewedAt = &now
+	candidate.ReviewedBy = &reviewedBy
+	candidate.ReviewNotes = &notes
 
 	// Update the store
-	if err := s.store.Update(*c); err != nil {
+	if err := s.store.Update(*candidate); err != nil {
 		return err
 	}
 
 	// Trigger bipartite add for papers and repos
-	if err := triggerBipartiteAdd(*c); err != nil {
-		// Log warning but don't fail the approval
-		fmt.Printf("Warning: failed to add to bipartite: %v\n", err)
+	if err := triggerBipartiteAdd(*candidate); err != nil {
+		// Approval succeeded but bipartite integration failed - propagate error
+		// The candidate status is already saved, so a retry will find it already approved
+		return fmt.Errorf("candidate %s approved but bipartite integration failed: %w", id, err)
 	}
 
 	return nil
@@ -122,30 +123,30 @@ func (s *CandidateService) Approve(id string, reviewedBy string, notes string) e
 
 // Reject rejects a candidate.
 func (s *CandidateService) Reject(id string, reviewedBy string, reason string) error {
-	c, err := s.store.FindByID(id)
+	candidate, err := s.store.FindByID(id)
 	if err != nil {
 		return err
 	}
-	if c == nil {
+	if candidate == nil {
 		return fmt.Errorf("candidate not found: %s", id)
 	}
-	if c.Status != CandidateStatusPending {
-		return fmt.Errorf("candidate %s is not pending (status: %s)", id, c.Status)
+	if candidate.Status != CandidateStatusPending {
+		return fmt.Errorf("candidate %s is not pending (status: %s)", id, candidate.Status)
 	}
 
 	now := time.Now()
-	c.Status = CandidateStatusRejected
-	c.ReviewedAt = &now
-	c.ReviewedBy = &reviewedBy
-	c.RejectionReason = &reason
+	candidate.Status = CandidateStatusRejected
+	candidate.ReviewedAt = &now
+	candidate.ReviewedBy = &reviewedBy
+	candidate.RejectionReason = &reason
 
 	// Update the store
-	if err := s.store.Update(*c); err != nil {
+	if err := s.store.Update(*candidate); err != nil {
 		return err
 	}
 
 	// Also add to rejected.jsonl for re-discovery prevention (FR-012)
-	return s.store.AppendRejected(*c)
+	return s.store.AppendRejected(*candidate)
 }
 
 // Stats returns queue statistics.
@@ -154,35 +155,35 @@ func (s *CandidateService) Stats() (*QueueStats, error) {
 }
 
 // getExternalID returns the external identifier for duplicate checking.
-func getExternalID(c Candidate) string {
-	switch c.Type {
+func getExternalID(candidate Candidate) string {
+	switch candidate.Type {
 	case CandidateTypePaper:
-		if c.PaperData != nil {
-			return c.PaperData.S2ID
+		if candidate.PaperData != nil {
+			return candidate.PaperData.S2ID
 		}
 	case CandidateTypeRepo:
-		if c.RepoData != nil {
-			return c.RepoData.URL
+		if candidate.RepoData != nil {
+			return candidate.RepoData.URL
 		}
 	case CandidateTypeCodeLocation:
-		if c.CodeLocationData != nil {
-			return c.CodeLocationData.PermalinkURL
+		if candidate.CodeLocationData != nil {
+			return candidate.CodeLocationData.PermalinkURL
 		}
 	}
 	return ""
 }
 
 // triggerBipartiteAdd adds approved candidates to bipartite.
-func triggerBipartiteAdd(c Candidate) error {
+func triggerBipartiteAdd(candidate Candidate) error {
 	// Check if bip CLI is available
 	if _, err := exec.LookPath("bip"); err != nil {
 		return fmt.Errorf("bip CLI not found")
 	}
 
-	switch c.Type {
+	switch candidate.Type {
 	case CandidateTypePaper:
-		if c.PaperData != nil {
-			cmd := exec.Command("bip", "s2", "add", c.PaperData.S2ID)
+		if candidate.PaperData != nil {
+			cmd := exec.Command("bip", "s2", "add", candidate.PaperData.S2ID)
 			var stderr bytes.Buffer
 			cmd.Stderr = &stderr
 			if err := cmd.Run(); err != nil {
@@ -190,8 +191,8 @@ func triggerBipartiteAdd(c Candidate) error {
 			}
 		}
 	case CandidateTypeRepo:
-		if c.RepoData != nil {
-			cmd := exec.Command("bip", "repo", "add", c.RepoData.URL)
+		if candidate.RepoData != nil {
+			cmd := exec.Command("bip", "repo", "add", candidate.RepoData.URL)
 			var stderr bytes.Buffer
 			cmd.Stderr = &stderr
 			if err := cmd.Run(); err != nil {

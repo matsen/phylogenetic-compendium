@@ -24,23 +24,23 @@ const (
 
 // SweepResult represents the result of a single sweep check.
 type SweepResult struct {
-	CheckType   CheckType         `json:"check_type"`
-	Status      SweepResultStatus `json:"status"`
-	Target      string            `json:"target"`
-	File        string            `json:"file"`
-	Line        int               `json:"line,omitempty"`
-	Message     string            `json:"message"`
-	Details     map[string]any    `json:"details,omitempty"`
-	SuggestedFix string           `json:"suggested_fix,omitempty"`
-	CheckedAt   time.Time         `json:"checked_at"`
+	CheckType    CheckType         `json:"check_type"`
+	Status       SweepResultStatus `json:"status"`
+	Target       string            `json:"target"`
+	File         string            `json:"file"`
+	Line         int               `json:"line,omitempty"`
+	Message      string            `json:"message"`
+	Details      map[string]any    `json:"details,omitempty"`
+	SuggestedFix string            `json:"suggested_fix,omitempty"`
+	CheckedAt    time.Time         `json:"checked_at"`
 }
 
 // SweepSummary contains aggregated sweep statistics.
 type SweepSummary struct {
-	TotalChecks  int `json:"total_checks"`
-	OK           int `json:"ok"`
-	Warnings     int `json:"warnings"`
-	Issues       int `json:"issues"`
+	TotalChecks int `json:"total_checks"`
+	OK          int `json:"ok"`
+	Warnings    int `json:"warnings"`
+	Issues      int `json:"issues"`
 }
 
 // SweepReport is the aggregated output of a sweep.
