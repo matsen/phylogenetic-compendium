@@ -5,6 +5,17 @@
 **Status**: Draft
 **Input**: Verification scripts, candidate queues, and agent prompts that implement the constitution's workflows
 
+## Scope
+
+**In scope**:
+- Verification scripts, candidate queues, agent prompts
+- Content generation (agents write compendium prose)
+- Proposing bipartite schema extensions (e.g., code-location nodes)
+- Git-based concurrent workflows (JSONL storage for mergeability)
+
+**Out of scope**:
+- Real-time collaboration (no live multi-user editing; use git branches/merges instead)
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Pre-Commit Verification (Priority: P1)
@@ -173,7 +184,8 @@ An author wants to kick off a multi-hour exploration or survey task and walk awa
 - **FR-009**: System MUST store candidates with metadata: type, external ID, agent notes, timestamp, status
 - **FR-010**: Code location candidates MUST include: repo URL, file path, line range, commit SHA, description
 - **FR-011**: System MUST support candidate statuses: pending, approved, rejected
-- **FR-012**: System MUST persist rejected candidates to prevent re-discovery
+- **FR-012**: System MUST persist rejected candidates with rejection reasons to prevent re-discovery
+- **FR-012a**: Agents SHOULD consult rejected.jsonl to learn relevance patterns and avoid queuing similar candidates
 - **FR-013**: System MUST allow listing candidates filtered by type and status
 - **FR-014**: System MUST allow approving candidates (triggering addition to bipartite)
 - **FR-015**: System MUST allow rejecting candidates with a reason
@@ -216,6 +228,8 @@ An author wants to kick off a multi-hour exploration or survey task and walk awa
 - **FR-042**: System MUST detect blocking issues and queue them for human review without stopping
 - **FR-043**: System MUST produce a summary of completed work when task finishes
 - **FR-044**: System MUST respect configurable iteration limits and cost budgets
+- **FR-044a**: System MUST update checkpoint.json at least every 5 minutes during autonomous operation
+- **FR-044b**: System MUST provide `scribe status` command that pretty-prints checkpoint.json (task name, duration, progress, candidates queued, cost)
 
 **Logging and Audit**:
 - **FR-045**: All agents MUST log actions in structured format for audit
@@ -245,9 +259,21 @@ An author wants to kick off a multi-hour exploration or survey task and walk awa
 - **SC-009**: Autonomous tasks can run for 3+ hours across multiple context resets without data loss
 - **SC-010**: Autonomous tasks recover gracefully from transient failures (network, rate limits) without human intervention
 
+## Clarifications
+
+### Session 2026-02-04
+
+- Q: How should authentication for external APIs (GitHub, Asta, S2) be handled? → A: Delegate to existing CLI auth (`gh auth`, `~/.config/bip/config.yml`)
+- Q: What is explicitly out of scope? → A: Real-time collaboration only; content generation, bipartite schema proposals, and git-based concurrent workflows ARE in scope
+- Q: How do users monitor autonomous task progress? → A: CLI status command that pretty-prints checkpoint.json (e.g., `authoring status`)
+- Q: What makes a candidate "relevant"? → A: Liberal queuing with relevance notes; humans filter during review; rejection reasons feed back to inform future agent runs
+- Q: How should CLI tools be organized? → A: Single CLI named `scribe` with subcommands (`scribe verify`, `scribe queue list`, `scribe status`)
+- Q: What language for scribe CLI? → A: Go (consistent with bip); shell out to Claude Haiku or local Ollama for NLP tasks (claim detection, relevance scoring)
+
 ## Assumptions
 
 - bipartite CLI is installed and configured with access to the nexus
+- Authentication: System delegates to pre-configured CLI auth (`gh auth` for GitHub CLI, `~/.config/bip/config.yml` for S2/Asta API keys) rather than managing credentials directly
 - bipartite repo nodes support code location metadata (file path, line range, commit SHA)—will be extended if needed
 - Asta MCP is available for snippet search and citation lookup
 - Semantic Scholar API is available for paper metadata
