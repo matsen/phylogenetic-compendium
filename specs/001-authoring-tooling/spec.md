@@ -87,7 +87,7 @@ An author wants to understand how multiple implementations handle a common probl
 
 A coding agent is implementing phylogenetic software and needs to make a design decision. For example: "Given that we are using Zig, think about all the options for implementing the phylogenetic tree structure and choose the one that will be efficient, safe, and easy to work with." The agent queries the compendium to find relevant technique entries, extracts structured information about implementations (language, data structures, tradeoffs), filters by language compatibility, and synthesizes a recommendation with citations to papers and code examples.
 
-**Why this priority**: This validates that the compendium is useful for its intended agentic audience. If agents can't query it effectively, the system fails Principle VI (Agentic Consumability).
+**Why this priority**: This validates that authored content is actually consumable by its intended agentic audience. Including this in authoring tooling ensures we verify consumability during authoring, not after publication. If agents can't query the compendium effectively, the system fails Principle VI (Agentic Consumability).
 
 **Independent Test**: Can be tested by having an agent query the compendium for a known topic and verifying it can extract structured, actionable information.
 
@@ -125,6 +125,7 @@ A compendium maintainer wants to ensure existing content remains accurate over t
 
 - What happens when bipartite is unavailable? Verification fails with a clear error indicating bipartite connectivity issue.
 - What happens when Asta rate limits are hit? Agent pauses, logs the rate limit, and resumes after backoff period.
+- What happens when GitHub API rate limits are hit during code location verification? System pauses, logs the rate limit, and resumes after backoff period; verification continues with remaining items.
 - What happens when a paper ID format is invalid? Verification fails fast with format error before attempting lookup.
 - What happens when the candidate queue file is corrupted? System detects corruption, refuses to proceed, and suggests recovery steps.
 - How does the system handle papers with no abstract in Asta? Agent logs the gap and proceeds with available metadata.
@@ -139,7 +140,7 @@ A compendium maintainer wants to ensure existing content remains accurate over t
 **Pre-Commit Verification**:
 - **FR-001**: System MUST verify all paper IDs in content resolve to entries in bipartite
 - **FR-002**: System MUST verify all repository URLs return successful HTTP status
-- **FR-003**: System MUST verify all code location links (file path, line range) are valid
+- **FR-003**: System MUST verify all code location links are valid (commit SHA exists, file path exists at that SHA, line range is within file bounds)
 - **FR-004**: System MUST verify every factual claim has at least one citation
 - **FR-005**: System MUST detect and report TODO/FIXME markers in publishable content
 - **FR-006**: System MUST produce a structured verification report (pass/fail with details)
@@ -209,16 +210,16 @@ A compendium maintainer wants to ensure existing content remains accurate over t
 - **SC-006**: Periodic verification sweep completes for a 100-page compendium in under 15 minutes
 - **SC-007**: 100% of verification failures include actionable information (what failed, where, why)
 - **SC-008**: Zero false positives in pre-commit verification (valid content never incorrectly blocked)
-- **SC-009**: Exploration agents find relevant code locations in >80% of cases where the technique exists in the target repo
 
 ## Assumptions
 
 - bipartite CLI is installed and configured with access to the nexus
+- bipartite repo nodes support code location metadata (file path, line range, commit SHA)—will be extended if needed
 - Asta MCP is available for snippet search and citation lookup
 - Semantic Scholar API is available for paper metadata
 - GitHub API is available for code search and file retrieval
 - Content follows Quarto/Markdown format with YAML frontmatter
 - Citations use bipartite paper IDs (not raw DOIs or ad-hoc formats)
-- Code location links use GitHub permalink format with commit SHA
+- Code location links use GitHub permalink format: `https://github.com/{org}/{repo}/blob/{sha}/{path}#L{start}-L{end}`
 - Agents run in an environment with network access to GitHub and academic APIs
 - Target repositories are public (private repos require additional authentication setup)
